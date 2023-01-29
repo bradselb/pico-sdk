@@ -1,5 +1,9 @@
 name: Build on Windows
-on: workflow_dispatch
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'test_workflow'
 jobs:
   build:
     runs-on: windows-2022
