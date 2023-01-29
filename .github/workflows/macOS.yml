@@ -1,15 +1,22 @@
-name: Build on Windows
-on: workflow_dispatch
+name: Build on macOS
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'test_workflow'
 jobs:
   build:
-    runs-on: windows-2022
+    runs-on: macos-12
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3
       - name: Checkout submodules
         run: git submodule update --init
       - name: Install dependencies
-        run: choco install .github/workflows/choco_packages.config
+        run: |
+          brew install cmake
+          brew tap ArmMbed/homebrew-formulae
+          brew install arm-none-eabi-gcc
 
       - name: Build Project
         # bash required otherwise this mysteriously (no error) fails at "Generating cyw43_bus_pio_spi.pio.h"
@@ -17,5 +24,5 @@ jobs:
         run: |
           mkdir build
           cd build
-          cmake .. -G Ninja -DPICO_SDK_TESTS_ENABLED=1 -DCMAKE_BUILD_TYPE=Debug -DPICO_BOARD=pico_w
+          cmake .. -G "Unix Makefiles" -DPICO_SDK_TESTS_ENABLED=1 -DCMAKE_BUILD_TYPE=Debug -DPICO_BOARD=pico_w
           cmake --build .
