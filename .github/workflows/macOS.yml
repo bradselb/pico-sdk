@@ -18,11 +18,26 @@ jobs:
           brew tap ArmMbed/homebrew-formulae
           brew install arm-none-eabi-gcc
 
-      - name: Build Project
+      - name: Device Debug
+        if: always()
         # bash required otherwise this mysteriously (no error) fails at "Generating cyw43_bus_pio_spi.pio.h"
         shell: bash
-        run: |
-          mkdir build
-          cd build
-          cmake .. -G "Unix Makefiles" -DPICO_SDK_TESTS_ENABLED=1 -DCMAKE_BUILD_TYPE=Debug -DPICO_BOARD=pico_w
-          cmake --build .
+        run: cd ${{github.workspace}}; mkdir -p build; rm -rf build/*; cd build; cmake ../ -DPICO_SDK_TESTS_ENABLED=1 -DCMAKE_BUILD_TYPE=Debug -DPICO_BOARD=pico_w; make -j ${{steps.core_count.outputs.output}}
+
+      - name: Device Release
+        if: always()
+        # bash required otherwise this mysteriously (no error) fails at "Generating cyw43_bus_pio_spi.pio.h"
+        shell: bash
+        run: cd ${{github.workspace}}; mkdir -p build; rm -rf build/*; cd build; cmake ../ -DPICO_SDK_TESTS_ENABLED=1 -DCMAKE_BUILD_TYPE=Release -DPICO_BOARD=pico_w; make -j ${{steps.core_count.outputs.output}}
+
+      - name: Native Debug
+        if: always()
+        # bash required otherwise this mysteriously (no error) fails at "Generating cyw43_bus_pio_spi.pio.h"
+        shell: bash
+        run: cd ${{github.workspace}}; mkdir -p build; rm -rf build/*; cd build; cmake ../ -DPICO_SDK_TESTS_ENABLED=1 -DCMAKE_BUILD_TYPE=Debug -DPICO_PLATFORM=host; make -j ${{steps.core_count.outputs.output}}
+
+      - name: Native Release
+        if: always()
+        # bash required otherwise this mysteriously (no error) fails at "Generating cyw43_bus_pio_spi.pio.h"
+        shell: bash
+        run: cd ${{github.workspace}}; mkdir -p build; rm -rf build/*; cd build; cmake ../ -DPICO_SDK_TESTS_ENABLED=1 -DCMAKE_BUILD_TYPE=Release -DPICO_PLATFORM=host; make -j ${{steps.core_count.outputs.output}}
