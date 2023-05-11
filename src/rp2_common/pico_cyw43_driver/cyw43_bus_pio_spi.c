@@ -8,11 +8,9 @@
 #include <string.h>
 #include <stdio.h>
 
-#include "pico/stdlib.h"
 #include "hardware/gpio.h"
 #include "hardware/pio.h"
 #include "hardware/clocks.h"
-#include "hardware/structs/iobank0.h"
 #include "hardware/sync.h"
 #include "hardware/dma.h"
 #include "cyw43_bus_pio_spi.pio.h"
@@ -65,7 +63,7 @@ static uint32_t counter = 0;
 
 //#define SWAP32(A) ((((A) & 0xff000000U) >> 8) | (((A) & 0xff0000U) << 8) | (((A) & 0xff00U) >> 8) | (((A) & 0xffU) << 8))
 __force_inline static uint32_t __swap16x2(uint32_t a) {
-    __asm ("rev16 %0, %0" : "+l" (a) : : );
+    pico_default_asm ("rev16 %0, %0" : "+l" (a) : : );
     return a;
 }
 #define SWAP32(a) __swap16x2(a)
@@ -140,7 +138,6 @@ int cyw43_spi_init(cyw43_int_t *self) {
     pio_sm_set_config(bus_data->pio, bus_data->pio_sm, &config);
     pio_sm_set_consecutive_pindirs(bus_data->pio, bus_data->pio_sm, CLOCK_PIN, 1, true);
     gpio_set_function(DATA_OUT_PIN, bus_data->pio_func_sel);
-    gpio_set_function(CLOCK_PIN, bus_data->pio_func_sel);
 
     // Set data pin to pull down and schmitt
     gpio_set_pulls(DATA_IN_PIN, false, true);
@@ -189,9 +186,11 @@ static __noinline void ns_delay(uint32_t ns) {
 
 static void start_spi_comms(cyw43_int_t *self) {
     bus_data_t *bus_data = (bus_data_t *)self->bus_data;
+    gpio_set_function(DATA_OUT_PIN, bus_data->pio_func_sel);
+    gpio_set_function(CLOCK_PIN, bus_data->pio_func_sel);
+    gpio_pull_down(CLOCK_PIN);
     // Pull CS low
     cs_set(false);
-    gpio_set_function(DATA_OUT_PIN, bus_data->pio_func_sel);
 }
 
 // we need to atomically de-assert CS and enable IRQ
@@ -481,12 +480,12 @@ int cyw43_write_reg_u8(cyw43_int_t *self, uint32_t fn, uint32_t reg, uint32_t va
 #error Block size is wrong for SPI
 #endif
 
-// Assumes we're reading into spid_buf
 int cyw43_read_bytes(cyw43_int_t *self, uint32_t fn, uint32_t addr, size_t len, uint8_t *buf) {
     assert(fn != BACKPLANE_FUNCTION || (len <= 64 && (addr + len) <= 0x8000));
     const uint32_t padding = (fn == BACKPLANE_FUNCTION) ? 4 : 0; // Add response delay
     size_t aligned_len = (len + 3) & ~3;
     assert(aligned_len > 0 && aligned_len <= 0x7f8);
+    assert(buf == self->spid_buf || buf < self->spid_buf || buf >= (self->spid_buf + sizeof(self->spid_buf)));
     self->spi_header[padding > 0 ? 0 : 1] = make_cmd(false, true, fn, addr, len + padding);
     if (fn == WLAN_FUNCTION) {
         logic_debug_set(pin_WIFI_RX, 1);

@@ -22,7 +22,7 @@ typedef struct alarm_pool_entry {
     void *user_data;
 } alarm_pool_entry_t;
 
-typedef struct alarm_pool {
+struct alarm_pool {
     pheap_t *heap;
     spin_lock_t *lock;
     alarm_pool_entry_t *entries;
@@ -32,7 +32,7 @@ typedef struct alarm_pool {
     alarm_id_t alarm_in_progress; // this is set during a callback from the IRQ handler... it can be cleared by alarm_cancel to prevent repeats
     uint8_t hardware_alarm_num;
     uint8_t core_num;
-} alarm_pool_t;
+};
 
 #if !PICO_TIME_DEFAULT_ALARM_POOL_DISABLED
 // To avoid bringing in calloc, we statically allocate the arrays and the heap
@@ -431,16 +431,21 @@ void sleep_ms(uint32_t ms) {
 
 bool best_effort_wfe_or_timeout(absolute_time_t timeout_timestamp) {
 #if !PICO_TIME_DEFAULT_ALARM_POOL_DISABLED
-    alarm_id_t id;
-    id = add_alarm_at(timeout_timestamp, sleep_until_callback, NULL, false);
-    if (id <= 0) {
+    if (__get_current_exception()) {
         tight_loop_contents();
         return time_reached(timeout_timestamp);
     } else {
-        __wfe();
-        // we need to clean up if it wasn't us that caused the wfe; if it was this will be a noop.
-        cancel_alarm(id);
-        return time_reached(timeout_timestamp);
+        alarm_id_t id;
+        id = add_alarm_at(timeout_timestamp, sleep_until_callback, NULL, false);
+        if (id <= 0) {
+            tight_loop_contents();
+            return time_reached(timeout_timestamp);
+        } else {
+            __wfe();
+            // we need to clean up if it wasn't us that caused the wfe; if it was this will be a noop.
+            cancel_alarm(id);
+            return time_reached(timeout_timestamp);
+        }
     }
 #else
     tight_loop_contents();

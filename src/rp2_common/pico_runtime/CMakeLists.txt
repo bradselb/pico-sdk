@@ -1,4 +1,4 @@
-pico_add_library(pico_runtime NOFLAG)
+pico_add_library(pico_runtime)
 
 target_sources(pico_runtime INTERFACE
         ${CMAKE_CURRENT_LIST_DIR}/runtime.c
@@ -40,5 +40,9 @@ if (TARGET pico_standard_link)
 endif()
 
 # todo is this correct/needed?
-target_link_options(pico_runtime INTERFACE "--specs=nosys.specs")
+if (PICO_C_COMPILER_IS_GNU)
+    target_link_options(pico_runtime INTERFACE "--specs=nosys.specs")
+elseif (PICO_C_COMPILER_IS_CLANG)
+   # target_link_options(pico_runtime INTERFACE "-nostdlib")
+endif()
 
